@@ -325,12 +325,12 @@ export default {
 		if (id) {
 			this.scrollTo(id)
 		}
-		let dom = document.getElementById('connectButton')
+		// let dom = document.getElementById('connectButton')
 
-		dom.innerText = localStorage.getItem('showAdress') || 'connect wallet'
+		// dom.innerText = localStorage.getItem('showAdress') || 'connect wallet'
 
 		this.zoomDom()
-		this.$initializ()
+		// this.$initializ()
 	},
 	methods: {
 		routeTo (rout) {

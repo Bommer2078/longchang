@@ -38,7 +38,7 @@
 						<div class="number">{{mint1}}</div>
 						<div class="button" @click="count('mint1',1)">+</div>
 					</div>
-					<div class="buy-botton">MINT 0.1 BNB(≈55$)</div>
+					<div @click="buy" class="buy-botton">MINT 0.1 BNB(≈55$)</div>
 				</div>
 				<div class="right-part">
 					<div class="number-contro">
@@ -61,6 +61,9 @@
 </template>
 
 <script>
+/* eslint-disable */
+import { ethers } from 'ethers'
+
 export default {
 	data () {
 		return {
@@ -69,14 +72,45 @@ export default {
 		}
 	},
 	mounted () {
-		let dom = document.getElementById('connectButton')
+		// let dom = document.getElementById('connectButton')
 
-		dom.innerText = localStorage.getItem('showAdress') || 'connect wallet'
+		// dom.innerText = localStorage.getItem('showAdress') || 'connect wallet'
 		this.zoomDom()
-		this.$initializ()
+		// this.$initializ()
 	},
 	methods: {
-		connectWallet () {
+	  async	connectWallet () {
+			if (window.ethereum) {
+				const [user] = await ethereum.request({ method: 'eth_requestAccounts' })
+				this.provider = await new ethers.providers.Web3Provider(window.ethereum)
+				this.signer = this.provider.getSigner()
+
+				console.log('用户地址：' + user)
+				this.provider.getBlockNumber().then(number => console.log('最新区块号：' + number))
+				
+				document.getElementById('connectButton').innerText = user.split('').slice(0, 5).join('') + '...'
+			}
+		},
+		async buy() {
+			console.log('buy')
+			const abi = [
+				"function balanceOf(address owner) external view returns (uint256 balance)"
+			]
+			const count = this.mint1
+			const contractAddress = '0xcdbb464fBf93D9c8f827137E87cC913CAF4c2B7f'
+			const contract = new ethers.Contract(
+				contractAddress,
+				abi,
+				this.signer
+			)
+			
+			const bal = await contract.balanceOf('0x74b7f4731818a003caB390c2A3D396B5A24dE9FD')
+			console.log('用户拥有nft数量：' + bal.toString())
+
+			// buy有问题，会报错
+			const tx = contract.buy(count, Date.now())
+			await tx.wait()
+			console.log(tx)
 		},
 		routeTo (rout) {
 			this.$router.push(rout)
