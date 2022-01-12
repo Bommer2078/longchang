@@ -71,7 +71,8 @@ export default {
 			mint2: 1,
 			provider: null,
 			signer: null,
-			userWallet: ''
+			userWallet: '',
+			price: '0.15'
 		}
 	},
 	mounted () {
@@ -109,11 +110,14 @@ export default {
 				this.signer
 			)
 
+			const overrides = {
+				value: ethers.utils.parseEther('0.15')
+			}
+
 			const bal = await contract.balanceOf(this.userWallet)
 			console.log('用户拥有nft数量：' + bal.toString())
 
-			// buy有问题，会报错
-			const tx = await contract.buy(count, 86400)
+			const tx = await contract.buy(1, 86400, overrides)
 			console.log(tx)
 		},
 		routeTo (rout) {
