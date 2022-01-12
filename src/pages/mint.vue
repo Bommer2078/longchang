@@ -113,7 +113,7 @@ export default {
 			console.log('用户拥有nft数量：' + bal.toString())
 
 			// buy有问题，会报错
-			const tx = await contract.buy(count, 86400, 0.15)
+			const tx = await contract.buy(count, 86400)
 			console.log(tx)
 		},
 		routeTo (rout) {
