@@ -68,7 +68,10 @@ export default {
 	data () {
 		return {
 			mint1: 1,
-			mint2: 1
+			mint2: 1,
+			provider: null,
+			signer: null,
+			userWallet: ''
 		}
 	},
 	mounted () {
@@ -82,19 +85,21 @@ export default {
 	  async	connectWallet () {
 			if (window.ethereum) {
 				const [user] = await ethereum.request({ method: 'eth_requestAccounts' })
+				this.userWallet = user
 				this.provider = await new ethers.providers.Web3Provider(window.ethereum)
 				this.signer = this.provider.getSigner()
 
 				console.log('用户地址：' + user)
 				this.provider.getBlockNumber().then(number => console.log('最新区块号：' + number))
-				
+
 				document.getElementById('connectButton').innerText = user.split('').slice(0, 5).join('') + '...'
 			}
 		},
 		async buy() {
 			console.log('buy')
 			const abi = [
-				"function balanceOf(address owner) external view returns (uint256 balance)"
+				"function balanceOf(address owner) external view returns (uint256 balance)",
+				"function buy(uint amount, uint adv_time) public payable"
 			]
 			const count = this.mint1
 			const contractAddress = '0xcdbb464fBf93D9c8f827137E87cC913CAF4c2B7f'
@@ -103,13 +108,12 @@ export default {
 				abi,
 				this.signer
 			)
-			
-			const bal = await contract.balanceOf('0x74b7f4731818a003caB390c2A3D396B5A24dE9FD')
+
+			const bal = await contract.balanceOf(this.userWallet)
 			console.log('用户拥有nft数量：' + bal.toString())
 
 			// buy有问题，会报错
-			const tx = contract.buy(count, Date.now())
-			await tx.wait()
+			const tx = await contract.buy(count, 86400, 0.15)
 			console.log(tx)
 		},
 		routeTo (rout) {
