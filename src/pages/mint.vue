@@ -38,7 +38,7 @@
 						<div class="number">{{mint1}}</div>
 						<div class="button" @click="count('mint1',1)">+</div>
 					</div>
-					<div @click="buy" class="buy-botton">MINT 0.1 BNB(≈55$)</div>
+					<div @click="buy('land')" class="buy-botton">MINT 0.15 BNB(≈82$)</div>
 				</div>
 				<div class="right-part">
 					<div class="number-contro">
@@ -46,17 +46,34 @@
 						<div class="number">{{mint2}}</div>
 						<div class="button" @click="count('mint2',1)">+</div>
 					</div>
-					<div class="buy-botton">MINT 0.1 BNB(≈55$)</div>
+					<div @click="buy('pond')" class="buy-botton">MINT 0.15 BNB(≈82$)</div>
 				</div>
 			</div>
-			<div class="nft">
+			<div class="nft" v-if="this.buySuccess" @click="getInfo">
 				<img src="../../static/img/mint/lands.jpg" alt="" class="title2">
-				<img src="../../static/img/mint/mang.png" alt="" class="mang">
+				<div class="ntf-group">
+					<img src="../../static/img/mint/mang.png" class="mang" v-for="(item,index) in mangArr" :key="index">
+				</div>
 			</div>
 			<section class="bg">
 			</section>
 		</section>
 		<section class="section4"></section>
+		<div class="mang-box-open" v-if="openMangBox">
+			<img src="../../static/img/mangImg.png" class="mang-img">
+			<span class="tip">Make sure to open the FBOX?</span>
+			<div class="button-group">
+				<div class="button" @click="openMangBox = false">No</div>
+				<div class="button blue" @click="confirmOpenMang">Soon</div>
+			</div>
+			<img src="../../static/img/close.png" class="close-box" @click="openMangBox = false">
+		</div>
+		<div class="mang-box-open" v-if="showNFT">
+			<img src="../../static/img/mangImg.png" class="mang-img">
+			<span class="tip">Congrats！</span>
+			<span class="tip">you got #LAND 000001 NFT.</span>
+			<img src="../../static/img/close.png" class="close-box" @click="showNFT = false">
+		</div>
 	</div>
 </template>
 
@@ -72,7 +89,13 @@ export default {
 			provider: null,
 			signer: null,
 			userWallet: '',
-			price: '0.15'
+			price: '0.15',
+			buySuccess: false,
+			nfts: 0,
+			openMangBox: false,
+			showNFT: false,
+			mangNum: 0,
+			mangArr: 0
 		}
 	},
 	mounted () {
@@ -80,6 +103,9 @@ export default {
 
 		// dom.innerText = localStorage.getItem('showAdress') || 'connect wallet'
 		this.zoomDom()
+		if (localStorage.getItem('currentWallet')) {
+			this.connectWallet()
+		}
 		// this.$initializ()
 	},
 	methods: {
@@ -87,6 +113,7 @@ export default {
 			if (window.ethereum) {
 				const [user] = await ethereum.request({ method: 'eth_requestAccounts' })
 				this.userWallet = user
+				localStorage.setItem('currentWallet',user)
 				this.provider = await new ethers.providers.Web3Provider(window.ethereum)
 				this.signer = this.provider.getSigner()
 
@@ -94,31 +121,58 @@ export default {
 				this.provider.getBlockNumber().then(number => console.log('最新区块号：' + number))
 
 				document.getElementById('connectButton').innerText = user.split('').slice(0, 5).join('') + '...'
+
+				// const abi = [
+				// "function balanceOf(address owner) external view returns (uint256 balance)",
+				// "function buy(uint amount, uint adv_time) public payable",
+				// "function ownerOf(uint256 tokenId) external view returns (address owner)",
+				// "function tokenMeta(uint256 _tokenId) public override view returns (TokenMeta memory)"
+				// ]
+
+				const abi = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"approved","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"operator","type":"address"},{"indexed":false,"internalType":"bool","name":"approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[],"name":"MAX_SUPPLY","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"baseURL","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"adv_time","type":"uint256"}],"name":"buy","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"buy_limit_per_address","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"current_sold","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"current_supply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_tokenId","type":"uint256"}],"name":"getSoldTimes","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"increaseSoldTimes","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_num","type":"uint256"},{"internalType":"uint256","name":"_price","type":"uint256"},{"internalType":"uint256","name":"_limit","type":"uint256"},{"internalType":"uint256","name":"_time","type":"uint256"}],"name":"mintAndPricing","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"price","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"sell_begin_time","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"_newBaseURL","type":"string"}],"name":"setBaseURL","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"name_","type":"string"},{"internalType":"string","name":"symbol_","type":"string"}],"name":"setNames","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_tokenId","type":"uint256"},{"internalType":"address","name":"_contractAddr","type":"address"},{"internalType":"uint256[]","name":"_settings","type":"uint256[]"},{"internalType":"address[]","name":"_addrs","type":"address[]"}],"name":"setSale","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_current_supply","type":"uint256"},{"internalType":"uint256","name":"_max_supply","type":"uint256"}],"name":"setSupplies","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_tokenId","type":"uint256"},{"internalType":"string","name":"_uri","type":"string"},{"internalType":"string","name":"_hash","type":"string"},{"internalType":"address","name":"_minter","type":"address"}],"name":"setTokenAsset","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_tokenId","type":"uint256"}],"name":"tokenMeta","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"uri","type":"string"},{"internalType":"string","name":"hash","type":"string"},{"internalType":"uint256","name":"soldTimes","type":"uint256"},{"internalType":"address","name":"minter","type":"address"}],"internalType":"struct TokenMeta","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"tokenOnChainMeta","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"uri","type":"string"},{"internalType":"string","name":"hash","type":"string"},{"internalType":"uint256","name":"soldTimes","type":"uint256"},{"internalType":"address","name":"minter","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"}]
+				const landAddress = '0xcdbb464fBf93D9c8f827137E87cC913CAF4c2B7f'
+				const pondAddress = '0x7EB5F588631e40fea7c65ec5eF5a438105b452E6'
+
+				this.land = new ethers.Contract(landAddress, abi, this.signer)
+				this.pond = new ethers.Contract(pondAddress, abi, this.signer)
+				this.land.balanceOf(this.userWallet).then(res => {
+					this.mangNum = res.toString()
+					if(ethers.utils.formatEther(res) > 0) this.buySuccess = true
+				})
+
+				this.pond.balanceOf(this.userWallet).then(res => {
+					this.mangNum = Number(res.toString()) + Number(this.mangNum)
+					if(ethers.utils.formatEther(res) > 0) this.buySuccess = true
+					this.mangArr = new Array(this.mangNum)
+				})
 			}
 		},
-		async buy() {
-			console.log('buy')
-			const abi = [
-				"function balanceOf(address owner) external view returns (uint256 balance)",
-				"function buy(uint amount, uint adv_time) public payable"
-			]
-			const count = this.mint1
-			const contractAddress = '0xcdbb464fBf93D9c8f827137E87cC913CAF4c2B7f'
-			const contract = new ethers.Contract(
-				contractAddress,
-				abi,
-				this.signer
-			)
+		async buy(nft) {
 
-			const overrides = {
-				value: ethers.utils.parseEther('0.15')
+			if(nft === 'land') {
+				const tx1 = await this.land.buy(this.mint1, 87000, {
+					value: ethers.utils.parseEther(`${this.mint1 * 0.15}`)
+				})
+				await tx1.wait()
+				this.buySuccess = true
 			}
 
-			const bal = await contract.balanceOf(this.userWallet)
-			console.log('用户拥有nft数量：' + bal.toString())
+			if(nft === 'pond') {
+				const tx2 = await this.pond.buy(this.mint2, 87000, {
+					value: ethers.utils.parseEther(`${this.mint1 * 0.15}`)
+				})
+				await tx2.wait()
+				this.buySuccess = true
+			}
 
-			const tx = await contract.buy(1, 86400, overrides)
-			console.log(tx)
+		},
+		async getInfo() {
+			const info = await this.land.tokenOnChainMeta(9998)
+			console.log(info)
+			this.openMangBox = true
+		},
+		async confirmOpenMang () {
+
 		},
 		routeTo (rout) {
 			this.$router.push(rout)
@@ -168,6 +222,58 @@ section {
 	box-sizing: border-box;
 }
 .main-page {
+	.mang-box-open {
+		position: fixed;
+		top: 366px;
+		left: 50%;
+		transform: translateX(-491px);
+		width: 982px;
+		height: 737px;
+		background: rgba(22, 27, 32, 0.8);
+		border: 1px solid #3195E4;
+		border-radius: 27px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		color:#fff;
+		z-index: 101;
+		.mang-img {
+			width: 311px;
+			height: 422px;
+			margin-top: 48px;
+			margin-bottom: 29px;
+		}
+		.tip {
+			font-size: 30px;
+			margin-bottom: 63px;
+		}
+		.button-group {
+			width: 594px;
+			display: flex;
+			justify-content: space-between;
+		}
+		.button {
+			width: 260px;
+			height: 55px;
+			line-height: 55px;
+			text-align: center;
+			font-size: 20px;
+			background: linear-gradient(90deg, #B6C4CC, #A7A7A7);
+			border-radius: 27px;
+			cursor: pointer;
+		}
+		.blue {
+			cursor: not-allowed;
+			background: linear-gradient(90deg, #06A1FF, #1467DE);
+		}
+		.close-box {
+			position: absolute;
+			right: 45px;
+			top: 45px;
+			width: 29px;
+			cursor: pointer;
+		}
+	}
 	position: relative;
 	.nav-header {
 		box-sizing: border-box;
