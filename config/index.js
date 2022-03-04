@@ -11,8 +11,7 @@ module.exports = {
     assetsPublicPath: '/',
     proxyTable: {
         "/api": {
-            target: "http://47.107.92.85:8080", //Backfire正式接口
-            changeOrigin: true, //跨域
+            target: "http://16.163.60.1:8992/",
             pathRewrite: {
               "^/api": "/"
             }

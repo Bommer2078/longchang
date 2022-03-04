@@ -1,11 +1,9 @@
-import Vue from './main'
 import axios from 'axios'
 import router from './router'
 import {Message} from 'element-ui'
 import querystring from 'querystring'
 // const val = process.env.API_ROOT
 const formdataArr = []
-let loading = null
 const blobArr = []
 
 axios.default.timeout = 8000
@@ -14,12 +12,12 @@ axios.default.timeout = 8000
 // http request 拦截器
 axios.interceptors.request.use(
 	(config) => {
-		loading = Vue.$loading({
-			lock      : true,
-			text      : 'Loading',
-			spinner   : 'el-icon-loading',
-			background: 'rgba(0, 0, 0, 0.7)'
-		})
+		// loading = Vue.$loading({
+		// 	lock      : true,
+		// 	text      : 'Loading',
+		// 	spinner   : 'el-icon-loading',
+		// 	background: 'rgba(0, 0, 0, 0.7)'
+		// })
 		const key = localStorage.getItem('Authorization')
 
 		if (formdataArr.indexOf(config.url) >= 0) {
@@ -43,7 +41,6 @@ axios.interceptors.request.use(
 // http response 拦截器
 axios.interceptors.response.use(
 	(response) => {
-		loading.close()
 		const arr = [ 401 ]
 
 		if (arr.indexOf(response.data.code) >= 0) {
@@ -54,7 +51,6 @@ axios.interceptors.response.use(
 		return response
 	},
 	(error) => {
-		loading.close()
 		if (error.message === 'Request failed with status code 401') {
 			localStorage.removeItem('Authorization')
 			Message.error('登录已过期，请重新登录')

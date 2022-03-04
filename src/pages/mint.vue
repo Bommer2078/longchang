@@ -1,19 +1,6 @@
 <template>
 	<div class="main-page" id="zoomDom">
-		<section class="nav-header">
-			<div class="logo-cover">
-				<img style="width:123px;height:51px;margin-right:170px;" src="../../static/img/logo@2x.png" alt="">
-			</div>
-			<div class="option-cover">
-				<span @click="routeTo('/')">Home</span>
-				<span class="active" @click="routeTo('/mint')">Mint</span>
-				<span>Game</span>
-				<span @click="openTo('Whitepaper')">Whitepaper</span>
-				<span @click="routeTo('/home?id=road')">Roadmap</span>
-				<span @click="routeTo('/home?id=team')">Team</span>
-				<span class="wallet-button" @click="connectWallet" id="connectButton">connect wallet</span>
-			</div>
-		</section>
+		<nav-header @connectWallet="connectWallet"></nav-header>
 		<section class="section2">
 			<img class="title" src="../../static/img/mint/mint.png" alt="">
 			<p style="width: 567px;text-align:center;">By minting/buying any of our initial minted NFTs, you will be granted access to the game for as long as you own it。</p>
@@ -33,26 +20,40 @@
 			<div class="content">Dream Farm $DRF will contain 10,000 Land NFTs and 10,000 Pond NFTs for sale, and once we reach the upper limit, we will plan to open more farms to allow new players to join the game. The land and pond will be split into 4 phases for sale. Each stage contains 2500 NFTs.</div>
 			<div class="after-part">
 				<div class="left-part">
-					<div class="number-contro">
+					<!-- <div class="number-contro">
 						<div class="button" @click="count('mint1',-1)">-</div>
 						<div class="number">{{mint1}}</div>
 						<div class="button" @click="count('mint1',1)">+</div>
-					</div>
+					</div> -->
 					<div @click="buy('land')" class="buy-botton">MINT 0.15 BNB(≈82$)</div>
 				</div>
 				<div class="right-part">
-					<div class="number-contro">
+					<!-- <div class="number-contro">
 						<div class="button" @click="count('mint2',-1)">-</div>
 						<div class="number">{{mint2}}</div>
 						<div class="button" @click="count('mint2',1)">+</div>
-					</div>
+					</div> -->
 					<div @click="buy('pond')" class="buy-botton">MINT 0.15 BNB(≈82$)</div>
 				</div>
 			</div>
-			<div class="nft" v-if="this.buySuccess" @click="getInfo">
-				<img src="../../static/img/mint/lands.jpg" alt="" class="title2">
+			<div class="title2" v-show="mangArr.length > 0 || nftArr.length > 0">
+				<!-- <span @click="chageTab(1)" :class="{'active-tab': currentTab === 1}">Blind Box</span> -->
+				<span @click="chageTab(2)" :class="{'active-tab': currentTab === 2}">My LANDS/PONDS</span>
+			</div>
+			<div class="nft" v-if="mangArr.length > 0 && currentTab === 1">
 				<div class="ntf-group">
-					<img src="../../static/img/mint/mang.png" class="mang" v-for="(item,index) in mangArr" :key="index">
+					<div v-for="(item,index) in mangArr" :key="index" style="position:relative;" >
+						<img src="../../static/img/mint/mang.png" class="mang"  @click="getInfoAndOpen(item)">
+						<div class="token-id">#{{item.type === 'land' ? 'LAND ' : 'POND '}}</div>
+					</div>
+				</div>
+			</div>
+			<div class="nft" v-if="nftArr.length > 0 && currentTab === 2">
+				<div class="ntf-group">
+					<div v-for="(item,index) in nftArr" :key="index" style="position:relative;" class="nft-box-card">
+						<img :src="NTFImg(item)" class="mang">
+						<div class="nft-token-id  token-id">#{{item.NFTtype === 'land' || item.type === 0 ? 'LAND ' : 'POND '}} {{item.token_id}}</div>
+					</div>
 				</div>
 			</div>
 			<section class="bg">
@@ -64,15 +65,18 @@
 			<span class="tip">Make sure to open the FBOX?</span>
 			<div class="button-group">
 				<div class="button" @click="openMangBox = false">No</div>
-				<div class="button blue" @click="confirmOpenMang">Soon</div>
+				<div class="button blue" @click="confirmOpenMang">Open</div>
 			</div>
 			<img src="../../static/img/close.png" class="close-box" @click="openMangBox = false">
 		</div>
 		<div class="mang-box-open" v-if="showNFT">
-			<img src="../../static/img/mangImg.png" class="mang-img">
+			<img :src="NTFImg(this.currentOpenMang)" class="mang-img">
 			<span class="tip">Congrats！</span>
-			<span class="tip">you got #LAND 000001 NFT.</span>
+			<span class="tip">you got #{{this.currentOpenMang.type}} {{this.currentOpenMang.token_id}} NFT.</span>
 			<img src="../../static/img/close.png" class="close-box" @click="showNFT = false">
+		</div>
+		<div class="loading" v-show="loading">
+			<img src="../../static/img/loading.gif" alt="">
 		</div>
 	</div>
 </template>
@@ -80,99 +84,200 @@
 <script>
 /* eslint-disable */
 import { ethers } from 'ethers'
-
+import myContract from '../libs/myContract'
 export default {
 	data () {
 		return {
-			mint1: 1,
-			mint2: 1,
-			provider: null,
-			signer: null,
-			userWallet: '',
-			price: '0.15',
-			buySuccess: false,
-			nfts: 0,
+			mint1      : 1,
+			mint2      : 1,
+			signer     : null,
+			price      : '0.15',
+			nfts       : 0,
 			openMangBox: false,
-			showNFT: false,
-			mangNum: 0,
-			mangArr: 0
+			showNFT    : false,
+			currentMang    : null,
+			currentOpenMang    : null,
+			loading    : false,
+			currentTab    : 2
 		}
 	},
+	mixins: [ myContract ],
 	mounted () {
-		// let dom = document.getElementById('connectButton')
-
-		// dom.innerText = localStorage.getItem('showAdress') || 'connect wallet'
+		// this.initMoralis()
 		this.zoomDom()
-		if (localStorage.getItem('currentWallet')) {
-			this.connectWallet()
-		}
-		// this.$initializ()
+	},
+	watch:{
+		showNFT(newVal) {
+			if (!newVal) {
+				this.currentOpenMang = null
+			}
+		},
+		openMangBox(newVal) {
+			if (!newVal) {
+				this.currentMang = null
+			}
+		},
 	},
 	methods: {
-	  async	connectWallet () {
-			if (window.ethereum) {
-				const [user] = await ethereum.request({ method: 'eth_requestAccounts' })
-				this.userWallet = user
-				localStorage.setItem('currentWallet',user)
-				this.provider = await new ethers.providers.Web3Provider(window.ethereum)
-				this.signer = this.provider.getSigner()
+		chageTab (type) {
+			if (this.currentTab === type) return
+			this.currentTab = type
+		},
+		NTFImg(item) {
+			let str = ''
+			if (item.NFTtype === 'land' || item.type === 0) {
+				switch (item.capacity) {
+					case 1:
+						str = require('../../static/img/nft/land1.png')
+						break;
+					case 2:
+						str = require('../../static/img/nft/land2.png')
+						break;
+					case 3:
+						str = require('../../static/img/nft/land3.png')
+						break;
+					case 4:
+						str = require('../../static/img/nft/land4.png')
+						break;
+					default:
+						break;
+				}
+			} else {
+				switch (item.capacity) {
+					case 1:
+						str = require('../../static/img/nft/pond1.png')
+						break;
+					case 2:
+						str = require('../../static/img/nft/pond2.png')
+						break;
+					case 3:
+						str = require('../../static/img/nft/pond3.png')
+						break;
+					case 4:
+						str = require('../../static/img/nft/pond4.png')
+						break;
+					default:
+						break;
+				}
+				console.log('item.capacity',item.capacity)
+			}
+			return str
+		},
+		async initMoralis () {
+			Moralis.start({
+				serverUrl: 'https://itj2k4rlbcfn.usemoralis.com:2053/server',
+				appId    : 'M9yIDWSPuez0y2EFftafEDSrAQoQ8Y5s0r5AO0Vm'
+			})
+		},
+		async buy (nft) {
+			if (this.loading) return
+			if (!this.userWallet) {
+				alert('connect your wallet first')
+				return
+			}
+			this.loading = true
+			if (nft === 'land') {
+				let tx1 = null
+				try {
+					tx1 = await this.landContrack.buy(this.mint1, 86400, {
+						value: ethers.utils.parseEther(`${this.mint1 * 0.15}`)
+					})
+					console.log('1111111111',tx1)
+				} catch (error) {
+					this.loading = false
+					if (error.data && error.data.data) {
+						if (error.data.code === -32000) {
+							alert('1insufficient funds for transfer')
+						} else {
+							alert(error.data.message)
+						}
+					} else if (error.data) {
+						alert(error.data.message)
+					} else {
+						alert(error)
+					}
+					return
+				}
 
-				console.log('用户地址：' + user)
-				this.provider.getBlockNumber().then(number => console.log('最新区块号：' + number))
+				let txR1 = await tx1.wait()
+				this.loading = false
+				console.log('222222222222222',txR1)
+				if (txR1 && txR1.events && txR1.events.length > 0) {
+				console.log('333333333333333333',txR1)
+					let length = txR1.events.length
+					let tokenId = txR1.events[length - 1].args.tokenId.toString()
+					this.confirmOpenMang(tokenId, nft, txR1.transactionHash)
+				}
+			}
 
-				document.getElementById('connectButton').innerText = user.split('').slice(0, 5).join('') + '...'
+			if (nft === 'pond') {
+				let tx2 = null
+				try {
+					tx2 = await this.pondContrack.buy(this.mint2, 86400, {
+						value: ethers.utils.parseEther(`${this.mint1 * 0.15}`)
+					})
+				} catch (error) {
+					this.loading = false
+					if (error.data && error.data.data) {
+						if (error.data.code === -32000) {
+							alert('1insufficient funds for transfer')
+						} else {
+							alert(error.data.message)
+						}
+					} else if (error.data) {
+						alert(error.data.message)
+					} else {
+						alert(error)
+					}
+					return
+				}
 
-				// const abi = [
-				// "function balanceOf(address owner) external view returns (uint256 balance)",
-				// "function buy(uint amount, uint adv_time) public payable",
-				// "function ownerOf(uint256 tokenId) external view returns (address owner)",
-				// "function tokenMeta(uint256 _tokenId) public override view returns (TokenMeta memory)"
-				// ]
-
-				const abi = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"approved","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"operator","type":"address"},{"indexed":false,"internalType":"bool","name":"approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[],"name":"MAX_SUPPLY","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"baseURL","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"adv_time","type":"uint256"}],"name":"buy","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"buy_limit_per_address","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"current_sold","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"current_supply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_tokenId","type":"uint256"}],"name":"getSoldTimes","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"increaseSoldTimes","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_num","type":"uint256"},{"internalType":"uint256","name":"_price","type":"uint256"},{"internalType":"uint256","name":"_limit","type":"uint256"},{"internalType":"uint256","name":"_time","type":"uint256"}],"name":"mintAndPricing","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"price","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"sell_begin_time","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"_newBaseURL","type":"string"}],"name":"setBaseURL","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"name_","type":"string"},{"internalType":"string","name":"symbol_","type":"string"}],"name":"setNames","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_tokenId","type":"uint256"},{"internalType":"address","name":"_contractAddr","type":"address"},{"internalType":"uint256[]","name":"_settings","type":"uint256[]"},{"internalType":"address[]","name":"_addrs","type":"address[]"}],"name":"setSale","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_current_supply","type":"uint256"},{"internalType":"uint256","name":"_max_supply","type":"uint256"}],"name":"setSupplies","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_tokenId","type":"uint256"},{"internalType":"string","name":"_uri","type":"string"},{"internalType":"string","name":"_hash","type":"string"},{"internalType":"address","name":"_minter","type":"address"}],"name":"setTokenAsset","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_tokenId","type":"uint256"}],"name":"tokenMeta","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"uri","type":"string"},{"internalType":"string","name":"hash","type":"string"},{"internalType":"uint256","name":"soldTimes","type":"uint256"},{"internalType":"address","name":"minter","type":"address"}],"internalType":"struct TokenMeta","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"tokenOnChainMeta","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"uri","type":"string"},{"internalType":"string","name":"hash","type":"string"},{"internalType":"uint256","name":"soldTimes","type":"uint256"},{"internalType":"address","name":"minter","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"}]
-				const landAddress = '0xcdbb464fBf93D9c8f827137E87cC913CAF4c2B7f'
-				const pondAddress = '0x7EB5F588631e40fea7c65ec5eF5a438105b452E6'
-
-				this.land = new ethers.Contract(landAddress, abi, this.signer)
-				this.pond = new ethers.Contract(pondAddress, abi, this.signer)
-				this.land.balanceOf(this.userWallet).then(res => {
-					this.mangNum = res.toString()
-					if(ethers.utils.formatEther(res) > 0) this.buySuccess = true
-				})
-
-				this.pond.balanceOf(this.userWallet).then(res => {
-					this.mangNum = Number(res.toString()) + Number(this.mangNum)
-					if(ethers.utils.formatEther(res) > 0) this.buySuccess = true
-					this.mangArr = new Array(this.mangNum)
-				})
+				let txR2 = await tx2.wait()
+				this.loading = false
+				if (txR2 && txR2.events && txR2.events.length > 0) {
+					let length = txR2.events.length
+					let tokenId = txR2.events[length - 1].args.tokenId.toString()
+					this.confirmOpenMang(tokenId, nft, txR2.transactionHash)
+				}
 			}
 		},
-		async buy(nft) {
+		async getInfoAndOpen (item) {
+			if (this.showNFT) return
+			// const info = await this.land.tokenOnChainMeta(9998)
 
-			if(nft === 'land') {
-				const tx1 = await this.land.buy(this.mint1, 87000, {
-					value: ethers.utils.parseEther(`${this.mint1 * 0.15}`)
-				})
-				await tx1.wait()
-				this.buySuccess = true
-			}
-
-			if(nft === 'pond') {
-				const tx2 = await this.pond.buy(this.mint2, 87000, {
-					value: ethers.utils.parseEther(`${this.mint1 * 0.15}`)
-				})
-				await tx2.wait()
-				this.buySuccess = true
-			}
-
-		},
-		async getInfo() {
-			const info = await this.land.tokenOnChainMeta(9998)
-			console.log(info)
+			// console.log(info)
+			this.currentMang = item
 			this.openMangBox = true
 		},
-		async confirmOpenMang () {
-
+		async confirmOpenMang (tokenId, nft, transactionHash) {
+			if(this.loading) return
+			this.loading = true
+			let url = `/farm-game/api/open_space`
+			let spaceAddr = nft === 'land' ? this.landAddress : this.pondAddress
+			let type = nft === 'land' ? 0 : 1
+			let params = {
+				spaceAddr,
+				tokenId: tokenId,
+				transactionHash,
+				type,
+				userAddr: this.userWallet
+			}
+			this.$http.post(url, params).then((res) => {
+				this.currentOpenMang = {
+					...res.data.content,
+					NFTtype: nft
+				}
+				console.log('444444444444444444',this.currentOpenMang)
+				this.openMangBox = false
+				this.showNFT = true
+				this.getNTFs()
+			})
+			.catch(() => {
+				alert('Internet error!, try again')
+			})
+			.finally(() => {
+				this.loading = false
+			})
 		},
 		routeTo (rout) {
 			this.$router.push(rout)
@@ -221,12 +326,45 @@ export default {
 section {
 	box-sizing: border-box;
 }
+.ntf-group {
+	width: 1920px;
+	overflow: auto;
+	display: flex;
+	justify-content: center;
+	.token-id {
+		color: #fff;
+		position: absolute;
+		bottom: 70px;
+		left: 70px;
+		font-size: 16px;
+	}
+	.nft-token-id {
+		top: 40px;
+		left: 40px;
+		font-size: 24px;
+	}
+}
+.nft-box-card {
+	margin-left: 5px;
+	margin-right: 5px;
+}
 .main-page {
+	.loading {
+		width: 80px;
+		height: 80px;
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		img {
+			width: 80px;
+			height: 80px;
+		}
+	}
 	.mang-box-open {
 		position: fixed;
-		top: 366px;
+		top: 50%;
 		left: 50%;
-		transform: translateX(-491px);
+		transform: translate(-491px, -380px);
 		width: 982px;
 		height: 737px;
 		background: rgba(22, 27, 32, 0.8);
@@ -263,7 +401,6 @@ section {
 			cursor: pointer;
 		}
 		.blue {
-			cursor: not-allowed;
 			background: linear-gradient(90deg, #06A1FF, #1467DE);
 		}
 		.close-box {
@@ -289,37 +426,6 @@ section {
 		width: 1920px;
 		height: 64px;
 		background: rgba(7, 33, 57, 0.85);
-		.option-cover {
-			span {
-				margin-left: 39px;
-				cursor: pointer;
-			}
-			.wallet-button {
-				width: 160px;
-				height: 36px;
-				line-height: 36px;
-				padding: 5px;
-				overflow: hidden;
-				text-overflow: ellipsis;
-				white-space: nowrap;
-				padding-left: 20px;
-				padding-right: 20px;
-				background: #294EE2;
-				border-radius: 18px;
-			}
-			.active {
-				color:#FF9E3F;
-				position: relative;
-				&::after{
-					content: '';
-					position: absolute;
-					bottom: -22px;
-					left: 0;
-					width: 38px;
-					border-bottom: 4px solid #FF9E3F;
-				}
-			}
-		}
 	}
 	.section2 {
 		display: flex;
@@ -370,6 +476,22 @@ line-height: 32px;
 		flex-direction: column;
 		background: url(../../static/img/bg/DRFBG_02@2x.png);
 		background-size: 1920px 1080px;
+		.title2 {
+			margin-bottom: 46px;
+			width: 471px;
+			font-size: 28px;
+			display: flex;
+			justify-content: space-between;
+			color: #fff;
+			margin-top: 150px;
+			span {
+				cursor: pointer;
+			}
+			.active-tab {
+				color: #FFA62E;
+				margin: 0 auto;
+			}
+		}
 		.after-part {
 			display: flex;
 			position: relative;
@@ -424,10 +546,6 @@ background: linear-gradient(90deg, #06A1FF, #1467DE);
 		margin-bottom: 36px;
 			width: 471px;
 			height: 105px;
-		}
-		.title2 {
-		margin-bottom: 46px;
-			width: 471px;
 		}
 		.content {
 			color: #fff;

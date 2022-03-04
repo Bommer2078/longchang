@@ -22,8 +22,7 @@ const createLintingRule = () => ({
 
 module.exports = {
 	externals: {
-		'web3': 'web3',
-		'Web3': 'Web3'
+		'Moralis': 'Moralis'
 	},
   context: path.resolve(__dirname, '../'),
   entry: {
